@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tool Hub</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg:        #1a1a2e;
+            --surface:   #16213e;
+            --border:    #0f3460;
+            --accent:    #00d4ff;
+            --text:      #eee;
+            --muted:     #888;
+            --tag-bg:    rgba(0, 212, 255, 0.10);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 48px 20px 60px;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 48px;
+        }
+        header h1 {
+            font-size: clamp(1.6rem, 4vw, 2.6rem);
+            color: var(--accent);
+            letter-spacing: 0.02em;
+        }
+        header p {
+            margin-top: 8px;
+            color: var(--muted);
+            font-size: 0.95rem;
+        }
+
+        /* ── Search / filter bar ── */
+        .toolbar {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-bottom: 36px;
+        }
+        .search-wrap {
+            position: relative;
+            flex: 1 1 240px;
+            max-width: 420px;
+        }
+        .search-wrap svg {
+            position: absolute;
+            left: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            pointer-events: none;
+            opacity: 0.4;
+        }
+        #searchInput {
+            width: 100%;
+            padding: 9px 12px 9px 34px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            font-size: 14px;
+        }
+        #searchInput:focus { outline: none; border-color: var(--accent); }
+
+        #tagFilter {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .tag-btn {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            color: var(--muted);
+            padding: 5px 12px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.15s;
+        }
+        .tag-btn:hover { border-color: var(--accent); color: var(--accent); }
+        .tag-btn.active {
+            background: var(--tag-bg);
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        /* ── Grid ── */
+        #toolGrid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 20px;
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+
+        .tool-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            text-decoration: none;
+            color: inherit;
+            transition: border-color 0.2s, transform 0.15s, box-shadow 0.2s;
+        }
+        .tool-card:hover {
+            border-color: var(--accent);
+            transform: translateY(-3px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+        }
+
+        .card-icon {
+            font-size: 2rem;
+            line-height: 1;
+        }
+        .card-name {
+            font-size: 1.05rem;
+            font-weight: 600;
+            color: var(--accent);
+        }
+        .card-desc {
+            font-size: 0.85rem;
+            color: var(--muted);
+            flex: 1;
+            line-height: 1.5;
+        }
+        .card-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        .card-tag {
+            background: var(--tag-bg);
+            border: 1px solid var(--border);
+            color: var(--accent);
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 12px;
+        }
+
+        /* empty state */
+        #emptyMsg {
+            display: none;
+            grid-column: 1 / -1;
+            text-align: center;
+            color: var(--muted);
+            padding: 40px 0;
+            font-size: 0.95rem;
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>Tool Hub</h1>
+    <p>A collection of browser-based utilities — no install required.</p>
+</header>
+
+<div class="toolbar">
+    <div class="search-wrap">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+        <input id="searchInput" type="search" placeholder="Search tools…" autocomplete="off">
+    </div>
+    <div id="tagFilter"></div>
+</div>
+
+<div id="toolGrid">
+    <div id="emptyMsg">No tools match your search.</div>
+</div>
+
+<script>
+    // ─────────────────────────────────────────────────────────────────────────
+    // TOOL LIST — add / edit entries here.
+    //
+    // Each entry:
+    //   url   : relative path (or absolute URL) to the tool
+    //   name  : display name
+    //   icon  : emoji shown on the card
+    //   desc  : short description
+    //   tags  : array of tag strings used for filtering
+    // ─────────────────────────────────────────────────────────────────────────
+    const TOOLS = [
+        {
+            url:  'percentage-splitter.html',
+            name: 'Percentage Splitter',
+            icon: '📊',
+            desc: 'Visually split a total value into named, colored chunks using an interactive drag slider.',
+            tags: ['math', 'finance']
+        },
+        // ── Add more tools below this line ──────────────────────────────────
+        // {
+        //     url:  'my-tool.html',
+        //     name: 'My Tool',
+        //     icon: '🔧',
+        //     desc: 'What it does.',
+        //     tags: ['category']
+        // },
+    ];
+    // ─────────────────────────────────────────────────────────────────────────
+
+    const grid       = document.getElementById('toolGrid');
+    const emptyMsg   = document.getElementById('emptyMsg');
+    const searchInput = document.getElementById('searchInput');
+    const tagFilter  = document.getElementById('tagFilter');
+
+    // Collect unique tags
+    const allTags = [...new Set(TOOLS.flatMap(t => t.tags))].sort();
+
+    // Build tag buttons
+    let activeTag = null;
+
+    function buildTagButtons() {
+        tagFilter.innerHTML = '';
+        const allBtn = document.createElement('button');
+        allBtn.className = 'tag-btn' + (activeTag === null ? ' active' : '');
+        allBtn.textContent = 'All';
+        allBtn.addEventListener('click', () => { activeTag = null; buildTagButtons(); applyFilters(); });
+        tagFilter.appendChild(allBtn);
+
+        allTags.forEach(tag => {
+            const btn = document.createElement('button');
+            btn.className = 'tag-btn' + (activeTag === tag ? ' active' : '');
+            btn.textContent = tag;
+            btn.addEventListener('click', () => {
+                activeTag = (activeTag === tag) ? null : tag;
+                buildTagButtons();
+                applyFilters();
+            });
+            tagFilter.appendChild(btn);
+        });
+    }
+
+    function applyFilters() {
+        const query = searchInput.value.trim().toLowerCase();
+        const visible = TOOLS.filter(t => {
+            const matchesTag  = !activeTag || t.tags.includes(activeTag);
+            const matchesSearch = !query ||
+                t.name.toLowerCase().includes(query) ||
+                t.desc.toLowerCase().includes(query) ||
+                t.tags.some(tag => tag.toLowerCase().includes(query));
+            return matchesTag && matchesSearch;
+        });
+
+        // Clear existing cards (keep emptyMsg)
+        Array.from(grid.querySelectorAll('.tool-card')).forEach(el => el.remove());
+
+        if (visible.length === 0) {
+            emptyMsg.style.display = 'block';
+        } else {
+            emptyMsg.style.display = 'none';
+            visible.forEach(tool => {
+                const card = document.createElement('a');
+                card.className = 'tool-card';
+                card.href = tool.url;
+                card.innerHTML = `
+                    <div class="card-icon">${tool.icon}</div>
+                    <div class="card-name">${tool.name}</div>
+                    <div class="card-desc">${tool.desc}</div>
+                    <div class="card-tags">${tool.tags.map(t => `<span class="card-tag">${t}</span>`).join('')}</div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+    }
+
+    searchInput.addEventListener('input', applyFilters);
+
+    buildTagButtons();
+    applyFilters();
+</script>
+</body>
+</html>
