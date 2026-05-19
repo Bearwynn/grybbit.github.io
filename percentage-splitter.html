@@ -1,0 +1,1090 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Percentage Splitter</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1a1a2e;
+            color: #eee;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 40px 20px;
+        }
+        h1 { margin-bottom: 30px; color: #00d4ff; }
+        .controls {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            margin-bottom: 40px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .controls label { font-size: 14px; color: #aaa; }
+        .controls input[type="number"] {
+            background: #16213e;
+            border: 1px solid #0f3460;
+            color: #eee;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 16px;
+            width: 140px;
+        }
+        .slider-container {
+            position: relative;
+            z-index: 1;
+            width: 100%;
+            max-width: 800px;
+            margin-bottom: 30px;
+            padding-top: 120px;
+        }
+        .overflow-label {
+            position: absolute;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-size: 12px;
+            color: #fff;
+            white-space: nowrap;
+            transform: translateX(-50%);
+            pointer-events: none;
+            z-index: 5;
+        }
+        .overflow-label .seg-name { font-size: 12px; font-weight: normal; opacity: 0.85; }
+        .overflow-label .seg-pct { font-size: 14px; font-weight: bold; }
+        .overflow-label .seg-val { font-size: 18px; font-weight: bold; color: #00d4ff; }
+        .overflow-line {
+            position: absolute;
+            width: 4px;
+            border-radius: 2px;
+            opacity: 0.5;
+            pointer-events: none;
+            transform: translateX(-50%);
+            z-index: -1;
+        }
+        .slider-resize-handle {
+            position: absolute;
+            z-index: 20;
+            background: transparent;
+        }
+        .slider-resize-handle:hover,
+        .slider-resize-handle.active {
+            background: rgba(0, 212, 255, 0.3);
+        }
+        .slider-resize-handle-left,
+        .slider-resize-handle-right {
+            top: 0;
+            width: 8px;
+            height: 100%;
+            cursor: ew-resize;
+        }
+        .slider-resize-handle-left { left: -8px; border-radius: 4px 0 0 4px; }
+        .slider-resize-handle-right { right: -8px; border-radius: 0 4px 4px 0; }
+        .slider-resize-handle-top,
+        .slider-resize-handle-bottom {
+            left: 0;
+            width: 100%;
+            height: 8px;
+            cursor: ns-resize;
+        }
+        .slider-resize-handle-top { top: -8px; border-radius: 4px 4px 0 0; }
+        .slider-resize-handle-bottom { bottom: -8px; border-radius: 0 0 4px 4px; }
+        .slider-track {
+            position: relative;
+            height: 72px;
+            background: #16213e;
+            border-radius: 36px;
+            overflow: hidden;
+            cursor: pointer;
+            border: 1px solid #0f3460;
+        }
+        .slider-segment {
+            position: absolute;
+            top: 0;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+            color: #fff;
+            transition: none;
+            user-select: none;
+            overflow: hidden;
+            line-height: 1.2;
+        }
+        .slider-segment .seg-name {
+            font-size: 12px;
+            font-weight: normal;
+            opacity: 0.85;
+        }
+        .slider-segment .seg-pct {
+            font-size: 14px;
+        }
+        .slider-segment .seg-val {
+            font-size: 25px;
+            font-weight: bold;
+            color: #00d4ff;
+        }
+        .slider-handle {
+            position: absolute;
+            top: -4px;
+            width: 6px;
+            height: calc(100% + 8px);
+            background: #fff;
+            border-radius: 3px;
+            cursor: ew-resize;
+            z-index: 10;
+            transform: translateX(-3px);
+            box-shadow: 0 0 6px rgba(255,255,255,0.5);
+        }
+        .slider-handle:hover { background: #00d4ff; box-shadow: 0 0 10px rgba(0,212,255,0.8); }
+        .chunks-container {
+            position: relative;
+            z-index: 0;
+            width: 100%;
+            max-width: 800px;
+            min-height: 220px;
+            margin-top: 10px;
+            padding-top: 6px;
+            overflow: visible;
+        }
+        .chunk-box {
+            background: #16213e;
+            border: 1px solid #0f3460;
+            border-radius: 8px;
+            padding: 12px 16px;
+            flex: none;
+            white-space: nowrap;
+        }
+        .chunk-rows {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            align-items: center;
+            gap: 4px 8px;
+            margin-top: 6px;
+        }
+        .chunk-rows label {
+            font-size: 10px;
+            color: #666;
+            text-align: right;
+            white-space: nowrap;
+        }
+        .chunk-box .chunk-label {
+            font-size: 11px;
+            color: #888;
+            margin-bottom: 6px;
+        }
+        .chunk-name-input {
+            background: transparent;
+            border: none;
+            border-bottom: 1px solid transparent;
+            color: #ccc;
+            font-size: 12px;
+            width: 70px;
+            text-align: left;
+            padding: 2px 4px;
+        }
+        .chunk-name-input:hover { border-bottom-color: #0f3460; }
+        .chunk-name-input:focus { outline: none; border-bottom-color: #00d4ff; color: #fff; }
+        .chunk-box .chunk-value {
+            font-size: 18px;
+            font-weight: bold;
+            color: #00d4ff;
+            margin-bottom: 6px;
+        }
+        .chunk-value-input {
+            background: transparent;
+            border: none;
+            border-bottom: 1px solid transparent;
+            color: #00d4ff;
+            font-size: 18px;
+            font-weight: bold;
+            width: 100%;
+            min-width: 90px;
+            text-align: left;
+            padding: 0;
+        }
+        .chunk-value-input:hover { border-bottom-color: #0f3460; }
+        .chunk-value-input:focus { outline: none; border-bottom-color: #00d4ff; }
+        .chunk-box input {
+            background: #0a0f1e;
+            border: 1px solid #0f3460;
+            color: #eee;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 14px;
+            width: 70px;
+            text-align: left;
+        }
+        .chunk-box input:focus { outline: none; border-color: #00d4ff; }
+        .chunk-color {
+            width: 40px;
+            height: 24px;
+            border: 1px solid #0f3460;
+            border-radius: 4px;
+            padding: 0;
+            cursor: pointer;
+            display: inline-block;
+            vertical-align: middle;
+            background: none;
+        }
+        .chunk-color::-webkit-color-swatch-wrapper { padding: 0; }
+        .chunk-color::-webkit-color-swatch { border: none; border-radius: 3px; }
+        .chunk-color::-moz-color-swatch { border: none; border-radius: 3px; }
+        .lock-btn {
+            background: transparent;
+            border: 1px solid #0f3460;
+            color: #666;
+            padding: 4px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            margin-top: 6px;
+            transition: all 0.2s;
+        }
+        .lock-btn:hover { border-color: #00d4ff; color: #aaa; }
+        .lock-btn.locked { border-color: #e63946; color: #e63946; background: rgba(230,57,70,0.1); }
+        .chunk-box.is-locked { border-color: #e63946; }
+
+        /* Saves panel */
+        .saves-panel {
+            position: fixed;
+            top: 16px;
+            left: 16px;
+            width: 220px;
+            max-height: calc(100vh - 32px);
+            background: #16213e;
+            border: 1px solid #0f3460;
+            border-radius: 8px;
+            padding: 12px;
+            overflow-y: auto;
+            z-index: 100;
+            font-size: 13px;
+        }
+        .saves-panel.collapsed {
+            width: auto;
+            overflow: hidden;
+        }
+        .saves-panel.collapsed .saves-body { display: none; }
+        .saves-panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+        .saves-panel-header h3 {
+            color: #00d4ff;
+            font-size: 13px;
+            margin: 0;
+        }
+        .saves-toggle-btn {
+            background: transparent;
+            border: none;
+            color: #aaa;
+            cursor: pointer;
+            font-size: 14px;
+            padding: 2px 4px;
+            border-radius: 3px;
+            line-height: 1;
+        }
+        .saves-toggle-btn:hover { color: #00d4ff; }
+        .save-btn {
+            width: 100%;
+            background: #0f3460;
+            border: 1px solid #00d4ff;
+            color: #00d4ff;
+            padding: 6px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 12px;
+            margin-bottom: 10px;
+            transition: background 0.2s;
+        }
+        .save-btn:hover { background: #1a4a7a; }
+        .saves-list-header {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 0 4px;
+            border-bottom: 1px solid #0f3460;
+            margin-bottom: 4px;
+            font-size: 10px;
+            color: #666;
+            text-transform: uppercase;
+        }
+        .saves-list-header span:first-child { flex: 1; padding-left: 4px; }
+        .saves-list-header span:nth-child(2),
+        .saves-list-header span:nth-child(3) { width: 26px; text-align: center; }
+        .save-entry {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 0;
+            border-bottom: 1px solid #0f3460;
+        }
+        .save-entry:last-child { border-bottom: none; }
+        .save-entry-name {
+            flex: 1;
+            background: transparent;
+            border: none;
+            border-bottom: 1px solid transparent;
+            color: #ccc;
+            font-size: 12px;
+            padding: 2px 4px;
+            min-width: 0;
+            cursor: pointer;
+        }
+        .save-entry-name:hover { border-bottom-color: #0f3460; }
+        .save-entry-name:focus { outline: none; border-bottom-color: #00d4ff; color: #fff; cursor: text; }
+        .save-entry-load {
+            background: transparent;
+            border: none;
+            color: #00d4ff;
+            cursor: pointer;
+            font-size: 14px;
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+        .save-entry-load:hover { background: rgba(0,212,255,0.15); }
+        .save-entry-del {
+            background: transparent;
+            border: none;
+            color: #e63946;
+            cursor: pointer;
+            font-size: 14px;
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+        .save-entry-del:hover { background: rgba(230,57,70,0.15); }
+    </style>
+</head>
+<body>
+    <div class="saves-panel" id="savesPanel">
+        <div class="saves-panel-header">
+            <h3>Saved Setups</h3>
+            <button class="saves-toggle-btn" id="savesToggleBtn" title="Collapse">▲</button>
+        </div>
+        <div class="saves-body" id="savesBody">
+            <button class="save-btn" id="saveCurrentBtn">💾 Save Current</button>
+            <div class="saves-list-header">
+                <span>Name</span><span>Load</span><span>Del</span>
+            </div>
+            <div id="savesList"></div>
+        </div>
+    </div>
+    <h1>Percentage Splitter</h1>
+    <div class="controls">
+        <div>
+            <label>Total Value</label><br>
+            <input type="number" id="totalValue" value="1000" min="0" step="any">
+        </div>
+        <div>
+            <label>Number of Chunks</label><br>
+            <input type="number" id="numChunks" value="3" min="2" max="20">
+        </div>
+    </div>
+    <div class="slider-container" id="sliderContainer">
+        <div class="slider-resize-handle slider-resize-handle-left" data-dir="left"></div>
+        <div class="slider-resize-handle slider-resize-handle-right" data-dir="right"></div>
+        <div class="slider-resize-handle slider-resize-handle-top" data-dir="top"></div>
+        <div class="slider-resize-handle slider-resize-handle-bottom" data-dir="bottom"></div>
+        <div class="slider-track" id="sliderTrack"></div>
+    </div>
+    <div class="chunks-container" id="chunksContainer"></div>
+
+    <script>
+        const COLORS = [
+            '#e63946','#457b9d','#2a9d8f','#e9c46a','#f4a261',
+            '#264653','#6a4c93','#1982c4','#8ac926','#ff595e',
+            '#ff924c','#ffca3a','#c77dff','#72efdd','#4cc9f0',
+            '#f72585','#7209b7','#3a0ca3','#4361ee','#4895ef'
+        ];
+
+        let percentages = [];
+        let chunkNames = [];
+        let chunkColors = [];
+        let lockedChunks = [];
+        let draggingIndex = -1;
+        let trackRect = null;
+
+        const totalInput = document.getElementById('totalValue');
+        const numChunksInput = document.getElementById('numChunks');
+        const sliderTrack = document.getElementById('sliderTrack');
+        const chunksContainer = document.getElementById('chunksContainer');
+
+        function init() {
+            const n = parseInt(numChunksInput.value) || 3;
+            const oldLen = percentages.length;
+
+            if (oldLen === 0) {
+                // First init - equal split
+                percentages = [];
+                chunkNames = [];
+                chunkColors = [];
+                lockedChunks = [];
+                const equalPct = 100 / n;
+                for (let i = 0; i < n; i++) {
+                    percentages.push(parseFloat(equalPct.toFixed(2)));
+                    chunkNames.push('Chunk ' + (i + 1));
+                    chunkColors.push(COLORS[i % COLORS.length]);
+                    lockedChunks.push(false);
+                }
+            } else if (n > oldLen) {
+                // Adding chunks - take equal share from unlocked existing chunks
+                const addCount = n - oldLen;
+                const newChunkPct = 100 / n;
+                const totalToTake = newChunkPct * addCount;
+
+                // Find unlocked chunks to take from
+                const unlocked = [];
+                for (let i = 0; i < oldLen; i++) {
+                    if (!lockedChunks[i]) unlocked.push(i);
+                }
+
+                if (unlocked.length > 0) {
+                    const unlockedTotal = unlocked.reduce((s, i) => s + percentages[i], 0);
+                    const scale = (unlockedTotal - totalToTake) / unlockedTotal;
+                    unlocked.forEach(i => {
+                        percentages[i] = parseFloat((percentages[i] * scale).toFixed(2));
+                    });
+                }
+
+                for (let i = 0; i < addCount; i++) {
+                    percentages.push(parseFloat(newChunkPct.toFixed(2)));
+                    chunkNames.push('Chunk ' + (oldLen + i + 1));
+                    chunkColors.push(COLORS[(oldLen + i) % COLORS.length]);
+                    lockedChunks.push(false);
+                }
+            } else if (n < oldLen) {
+                // Removing chunks from the end
+                percentages = percentages.slice(0, n);
+                chunkNames = chunkNames.slice(0, n);
+                chunkColors = chunkColors.slice(0, n);
+                lockedChunks = lockedChunks.slice(0, n);
+                // Redistribute removed percentage among unlocked
+                const sum = percentages.reduce((a, b) => a + b, 0);
+                const deficit = 100 - sum;
+                const unlocked = [];
+                for (let i = 0; i < n; i++) {
+                    if (!lockedChunks[i]) unlocked.push(i);
+                }
+                if (unlocked.length > 0 && Math.abs(deficit) > 0.01) {
+                    const unlockedTotal = unlocked.reduce((s, i) => s + percentages[i], 0);
+                    if (unlockedTotal > 0) {
+                        unlocked.forEach(i => {
+                            percentages[i] = parseFloat((percentages[i] * (unlockedTotal + deficit) / unlockedTotal).toFixed(2));
+                        });
+                    } else {
+                        unlocked.forEach(i => {
+                            percentages[i] = parseFloat((deficit / unlocked.length).toFixed(2));
+                        });
+                    }
+                }
+            }
+
+            // Fix rounding
+            const diff = 100 - percentages.reduce((a, b) => a + b, 0);
+            if (Math.abs(diff) > 0.01) {
+                percentages[percentages.length - 1] = parseFloat((percentages[percentages.length - 1] + diff).toFixed(2));
+            }
+            render();
+        }
+
+        function render() {
+            renderSlider();
+            renderChunks();
+            resolveLayout();
+        }
+
+        function renderSlider() {
+            sliderTrack.innerHTML = '';
+            // Remove old overflow labels and lines
+            sliderContainer.querySelectorAll('.overflow-label, .overflow-line').forEach(el => el.remove());
+            let cumulative = 0;
+            const trackWidth = sliderTrack.offsetWidth || sliderContainer.offsetWidth;
+            const trackTop = sliderTrack.offsetTop;
+            const sliderMidY = trackTop + sliderTrack.offsetHeight / 2;
+            const overflowData = [];
+
+            for (let i = 0; i < percentages.length; i++) {
+                const seg = document.createElement('div');
+                seg.className = 'slider-segment';
+                seg.style.left = cumulative + '%';
+                seg.style.width = percentages[i] + '%';
+                seg.style.background = chunkColors[i];
+                const total = parseFloat(totalInput.value) || 0;
+                const segValue = (total * percentages[i] / 100).toFixed(2);
+
+                // Check if segment is too narrow for text
+                const segPixelWidth = (percentages[i] / 100) * trackWidth;
+                const isCropped = segPixelWidth < 70;
+
+                if (isCropped) {
+                    seg.innerHTML = '';
+                    const segCenter = cumulative + percentages[i] / 2;
+                    // Create label, position later after overlap resolution
+                    const label = document.createElement('div');
+                    label.className = 'overflow-label';
+                    label.style.left = segCenter + '%';
+                    label.innerHTML = `<span class="seg-name">${chunkNames[i]}</span><span class="seg-pct">${percentages[i].toFixed(1)}%</span><span class="seg-val">${segValue}</span>`;
+                    sliderContainer.appendChild(label);
+                    overflowData.push({ label, segCenter, color: chunkColors[i], index: i });
+                } else {
+                    seg.innerHTML = `<span class="seg-name">${chunkNames[i]}</span><span class="seg-pct">${percentages[i].toFixed(1)}%</span><span class="seg-val">${segValue}</span>`;
+                }
+                sliderTrack.appendChild(seg);
+                cumulative += percentages[i];
+
+                // Add handle between segments (not after last)
+                if (i < percentages.length - 1) {
+                    const handle = document.createElement('div');
+                    handle.className = 'slider-handle';
+                    handle.style.left = cumulative + '%';
+                    handle.dataset.index = i;
+                    handle.addEventListener('mousedown', onHandleMouseDown);
+                    handle.addEventListener('touchstart', onHandleTouchStart, { passive: false });
+                    sliderTrack.appendChild(handle);
+                }
+            }
+
+            // Resolve overflow label overlaps (step upward like edit panels step downward)
+            if (overflowData.length > 0) {
+                const containerWidth = sliderContainer.offsetWidth || trackWidth;
+                const GAP = 8;
+                // Place all at baseline first, measure
+                overflowData.forEach(d => { d.label.style.bottom = (sliderContainer.offsetHeight - trackTop + 10) + 'px'; });
+                const widths = overflowData.map(d => d.label.offsetWidth);
+                const heights = overflowData.map(d => d.label.offsetHeight);
+                const centers = overflowData.map(d => (d.segCenter / 100) * containerWidth);
+                // bottoms = distance from bottom of container (higher = further up)
+                const baseBottom = sliderContainer.offsetHeight - trackTop + 10;
+                const bottoms = new Array(overflowData.length).fill(baseBottom);
+
+                for (let i = 1; i < overflowData.length; i++) {
+                    let changed = true;
+                    while (changed) {
+                        changed = false;
+                        for (let j = 0; j < i; j++) {
+                            const lj = centers[j] - widths[j] / 2, rj = centers[j] + widths[j] / 2;
+                            const li = centers[i] - widths[i] / 2, ri = centers[i] + widths[i] / 2;
+                            const hOverlap = li < rj + GAP && ri > lj - GAP;
+                            const vOverlap = bottoms[i] < bottoms[j] + heights[j] + GAP && bottoms[i] + heights[i] > bottoms[j] - GAP;
+                            if (hOverlap && vOverlap) {
+                                bottoms[i] = bottoms[j] + heights[j] + GAP;
+                                changed = true;
+                            }
+                        }
+                    }
+                }
+
+                // Apply positions and draw lines
+                overflowData.forEach((d, i) => {
+                    const topPos = sliderContainer.offsetHeight - bottoms[i] - heights[i];
+                    d.label.style.top = topPos + 'px';
+                    d.label.style.bottom = '';
+                    // Connector line from bottom of label to slider midpoint
+                    const lineTop = topPos + heights[i];
+                    const lineHeight = sliderMidY - lineTop;
+                    const line = document.createElement('div');
+                    line.className = 'overflow-line';
+                    line.style.left = d.segCenter + '%';
+                    line.style.top = lineTop + 'px';
+                    line.style.height = Math.max(0, lineHeight) + 'px';
+                    line.style.background = d.color;
+                    sliderContainer.appendChild(line);
+                });
+            }
+        }
+
+        function renderChunks() {
+            const total = parseFloat(totalInput.value) || 0;
+            chunksContainer.innerHTML = '';
+            for (let i = 0; i < percentages.length; i++) {
+                const value = (total * percentages[i] / 100);
+                const box = document.createElement('div');
+                box.className = 'chunk-box';
+                // Position each box centered under its segment
+                let cumBefore = 0;
+                for (let j = 0; j < i; j++) cumBefore += percentages[j];
+                const segCenter = cumBefore + percentages[i] / 2;
+                box.style.position = 'absolute';
+                box.style.left = segCenter + '%';
+                box.style.transform = 'translateX(-50%)';
+                if (lockedChunks[i]) box.classList.add('is-locked');
+                box.innerHTML = `
+                    <div class="chunk-rows">
+                        <label>Name</label><input type="text" class="chunk-name-input" value="${chunkNames[i]}" data-index="${i}">
+                        <label>Color</label><input type="color" class="chunk-color" value="${chunkColors[i]}" data-index="${i}">
+                        <label>Value</label><input type="number" class="chunk-value-input" value="${value.toFixed(2)}" step="any" data-index="${i}">
+                        <label>Percent</label><div style="display:flex;align-items:center;gap:4px"><input type="number" value="${percentages[i].toFixed(2)}" min="0" max="100" step="0.1" data-index="${i}"><span style="font-size:10px;color:#666">%</span></div>
+                    </div>
+                    <button class="lock-btn${lockedChunks[i] ? ' locked' : ''}" data-index="${i}" style="display:block;margin:6px auto 0">${lockedChunks[i] ? '🔒 Locked' : '🔓 Lock'}</button>
+                `;
+                chunksContainer.appendChild(box);
+                const colorInput = box.querySelector('.chunk-color');
+                colorInput.addEventListener('input', (e) => {
+                    chunkColors[parseInt(e.target.dataset.index)] = e.target.value;
+                    renderSlider();
+                });
+                colorInput.addEventListener('change', (e) => {
+                    chunkColors[parseInt(e.target.dataset.index)] = e.target.value;
+                    renderSlider();
+                });
+                const input = box.querySelector('input[type="number"]:not(.chunk-value-input)');
+                input.addEventListener('change', onPercentageInput);
+                input.addEventListener('keyup', (e) => { if (e.key === 'Enter') onPercentageInput(e); });
+                const valueInput = box.querySelector('.chunk-value-input');
+                valueInput.addEventListener('change', onValueInput);
+                valueInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') onValueInput(e); });
+                const nameInput = box.querySelector('.chunk-name-input');
+                nameInput.addEventListener('change', (e) => {
+                    chunkNames[parseInt(e.target.dataset.index)] = e.target.value;
+                    renderSlider();
+                });
+                nameInput.addEventListener('input', (e) => {
+                    chunkNames[parseInt(e.target.dataset.index)] = e.target.value;
+                    renderSlider();
+                });
+                const lockBtn = box.querySelector('.lock-btn');
+                lockBtn.addEventListener('click', (e) => {
+                    const li = parseInt(e.target.dataset.index);
+                    lockedChunks[li] = !lockedChunks[li];
+                    render();
+                });
+            }
+        }
+
+        function resolveLayout() {
+            const boxes = Array.from(chunksContainer.querySelectorAll('.chunk-box'));
+            if (boxes.length === 0) return;
+            const containerWidth = chunksContainer.offsetWidth;
+            if (!containerWidth) return;
+
+            const centers = boxes.map((_, i) => {
+                let cum = 0;
+                for (let j = 0; j < i; j++) cum += percentages[j];
+                return (cum + percentages[i] / 2) / 100 * containerWidth;
+            });
+
+            // Reset tops, force reflow, read dimensions
+            boxes.forEach(b => { b.style.top = '0px'; });
+            const widths  = boxes.map(b => b.offsetWidth);
+            const heights = boxes.map(b => b.offsetHeight);
+
+            // Greedy top-down overlap resolution
+            const tops = new Array(boxes.length).fill(0);
+            const GAP = 8;
+            for (let i = 1; i < boxes.length; i++) {
+                let changed = true;
+                while (changed) {
+                    changed = false;
+                    for (let j = 0; j < i; j++) {
+                        const lj = centers[j] - widths[j] / 2, rj = centers[j] + widths[j] / 2;
+                        const li = centers[i] - widths[i] / 2, ri = centers[i] + widths[i] / 2;
+                        const hOverlap = li < rj + GAP && ri > lj - GAP;
+                        const vOverlap = tops[i] < tops[j] + heights[j] + GAP && tops[i] + heights[i] > tops[j] - GAP;
+                        if (hOverlap && vOverlap) {
+                            tops[i] = tops[j] + heights[j] + GAP;
+                            changed = true;
+                        }
+                    }
+                }
+            }
+
+            boxes.forEach((b, i) => { b.style.top = tops[i] + 'px'; });
+
+            // Expand container to fit
+            const maxBottom = Math.max(...boxes.map((_, i) => tops[i] + heights[i]));
+            chunksContainer.style.minHeight = (maxBottom + 10) + 'px';
+
+            // Draw connector lines
+            chunksContainer.querySelectorAll('.chunk-line').forEach(el => el.remove());
+            const sliderBottom = sliderTrack.getBoundingClientRect().bottom;
+            const containerTop = chunksContainer.getBoundingClientRect().top;
+            const offsetAbove = containerTop - sliderBottom;
+            const sliderH = sliderTrack.offsetHeight;
+            const totalLineOffset = offsetAbove + sliderH / 2;
+            boxes.forEach((_, i) => {
+                const line = document.createElement('div');
+                line.className = 'chunk-line';
+                const lineTop = -totalLineOffset;
+                const lineHeight = tops[i] + totalLineOffset;
+                line.style.cssText = `position:absolute;width:4px;top:${lineTop}px;height:${lineHeight}px;left:${centers[i]}px;transform:translateX(-2px);background:${chunkColors[i]};opacity:0.5;pointer-events:none;border-radius:2px;z-index:-1;`;
+                chunksContainer.appendChild(line);
+            });
+        }
+
+        function onValueInput(e) {
+            const idx = parseInt(e.target.dataset.index);
+            const total = parseFloat(totalInput.value) || 0;
+            if (total <= 0) return;
+
+            let newVal = parseFloat(e.target.value);
+            if (isNaN(newVal) || newVal < 0) newVal = 0;
+            if (newVal > total) newVal = total;
+
+            // Convert value to percentage
+            const newPct = (newVal / total) * 100;
+            // Simulate a percentage input change
+            const fakeEvent = { target: { dataset: { index: idx.toString() }, value: newPct.toFixed(2) } };
+            onPercentageInput(fakeEvent);
+        }
+
+        function onPercentageInput(e) {
+            const idx = parseInt(e.target.dataset.index);
+            let newVal = parseFloat(e.target.value);
+            if (isNaN(newVal) || newVal < 0) newVal = 0;
+            if (newVal > 100) newVal = 100;
+
+            const oldVal = percentages[idx];
+            percentages[idx] = newVal;
+
+            // Calculate total of locked chunks (excluding the one being edited)
+            let lockedTotal = 0;
+            for (let i = 0; i < percentages.length; i++) {
+                if (i !== idx && lockedChunks[i]) lockedTotal += percentages[i];
+            }
+
+            // Distribute remainder among unlocked chunks (excluding current)
+            const unlocked = [];
+            for (let i = 0; i < percentages.length; i++) {
+                if (i !== idx && !lockedChunks[i]) unlocked.push(i);
+            }
+
+            const availableForUnlocked = 100 - newVal - lockedTotal;
+            if (unlocked.length === 0) {
+                // No unlocked chunks to adjust - revert
+                percentages[idx] = oldVal;
+            } else {
+                const oldUnlockedTotal = unlocked.reduce((sum, i) => sum + percentages[i], 0) || 0;
+                if (oldUnlockedTotal <= 0) {
+                    const share = availableForUnlocked / unlocked.length;
+                    unlocked.forEach(i => { percentages[i] = share; });
+                } else {
+                    unlocked.forEach(i => {
+                        percentages[i] = percentages[i] * (availableForUnlocked / oldUnlockedTotal);
+                    });
+                }
+            }
+
+            // Clamp and fix rounding
+            clampAndNormalize();
+            render();
+        }
+
+        function clampAndNormalize() {
+            for (let i = 0; i < percentages.length; i++) {
+                if (percentages[i] < 0) percentages[i] = 0;
+                percentages[i] = parseFloat(percentages[i].toFixed(2));
+            }
+            const sum = percentages.reduce((a, b) => a + b, 0);
+            if (Math.abs(sum - 100) > 0.01) {
+                const diff = 100 - sum;
+                // Add diff to largest chunk
+                let maxIdx = 0;
+                for (let i = 1; i < percentages.length; i++) {
+                    if (percentages[i] > percentages[maxIdx]) maxIdx = i;
+                }
+                percentages[maxIdx] = parseFloat((percentages[maxIdx] + diff).toFixed(2));
+            }
+        }
+
+        function onHandleMouseDown(e) {
+            e.preventDefault();
+            draggingIndex = parseInt(e.target.dataset.index);
+            trackRect = sliderTrack.getBoundingClientRect();
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', onMouseUp);
+        }
+
+        function onHandleTouchStart(e) {
+            e.preventDefault();
+            draggingIndex = parseInt(e.target.dataset.index);
+            trackRect = sliderTrack.getBoundingClientRect();
+            document.addEventListener('touchmove', onTouchMove, { passive: false });
+            document.addEventListener('touchend', onTouchEnd);
+        }
+
+        function onMouseMove(e) {
+            if (draggingIndex < 0) return;
+            const x = e.clientX - trackRect.left;
+            updateDrag(x);
+        }
+
+        function onTouchMove(e) {
+            if (draggingIndex < 0) return;
+            e.preventDefault();
+            const touch = e.touches[0];
+            const x = touch.clientX - trackRect.left;
+            updateDrag(x);
+        }
+
+        function updateDrag(x) {
+            const pct = (x / trackRect.width) * 100;
+            const idx = draggingIndex;
+
+            // Don't drag if either adjacent chunk is locked
+            if (lockedChunks[idx] || lockedChunks[idx + 1]) return;
+
+            // Calculate cumulative before this handle
+            let cumulativeBefore = 0;
+            for (let i = 0; i < idx; i++) {
+                cumulativeBefore += percentages[i];
+            }
+
+            // Calculate cumulative after next chunk
+            let cumulativeAfter = 0;
+            for (let i = idx + 2; i < percentages.length; i++) {
+                cumulativeAfter += percentages[i];
+            }
+
+            const minChunk = 1; // Minimum 1% per chunk
+            const minBefore = cumulativeBefore + minChunk;
+            const maxAfter = 100 - cumulativeAfter - minChunk;
+
+            const clampedPct = Math.max(minBefore, Math.min(maxAfter, pct));
+
+            // Update the two adjacent chunks
+            percentages[idx] = parseFloat((clampedPct - cumulativeBefore).toFixed(2));
+            percentages[idx + 1] = parseFloat((100 - cumulativeAfter - clampedPct).toFixed(2));
+
+            clampAndNormalize();
+            render();
+        }
+
+        function onMouseUp() {
+            draggingIndex = -1;
+            document.removeEventListener('mousemove', onMouseMove);
+            document.removeEventListener('mouseup', onMouseUp);
+        }
+
+        function onTouchEnd() {
+            draggingIndex = -1;
+            document.removeEventListener('touchmove', onTouchMove);
+            document.removeEventListener('touchend', onTouchEnd);
+        }
+
+        numChunksInput.addEventListener('change', init);
+        numChunksInput.addEventListener('input', init);
+        totalInput.addEventListener('change', render);
+        totalInput.addEventListener('input', render);
+        window.addEventListener('resize', resolveLayout);
+
+        // Slider resize logic
+        const sliderContainer = document.getElementById('sliderContainer');
+        let resizeDir = null;
+        let resizeStartX = 0;
+        let resizeStartY = 0;
+        let resizeStartWidth = 0;
+        let resizeStartHeight = 0;
+
+        document.querySelectorAll('.slider-resize-handle').forEach(handle => {
+            handle.addEventListener('mousedown', onResizeStart);
+            handle.addEventListener('touchstart', onResizeTouchStart, { passive: false });
+        });
+
+        function onResizeStart(e) {
+            e.preventDefault();
+            resizeDir = e.target.dataset.dir;
+            resizeStartX = e.clientX;
+            resizeStartY = e.clientY;
+            resizeStartWidth = sliderContainer.offsetWidth;
+            resizeStartHeight = sliderTrack.offsetHeight;
+            e.target.classList.add('active');
+            document.addEventListener('mousemove', onResizeMove);
+            document.addEventListener('mouseup', onResizeEnd);
+        }
+
+        function onResizeTouchStart(e) {
+            e.preventDefault();
+            resizeDir = e.target.dataset.dir;
+            const touch = e.touches[0];
+            resizeStartX = touch.clientX;
+            resizeStartY = touch.clientY;
+            resizeStartWidth = sliderContainer.offsetWidth;
+            resizeStartHeight = sliderTrack.offsetHeight;
+            e.target.classList.add('active');
+            document.addEventListener('touchmove', onResizeTouchMove, { passive: false });
+            document.addEventListener('touchend', onResizeTouchEnd);
+        }
+
+        function onResizeMove(e) {
+            applyResize(e.clientX, e.clientY);
+        }
+
+        function onResizeTouchMove(e) {
+            e.preventDefault();
+            const touch = e.touches[0];
+            applyResize(touch.clientX, touch.clientY);
+        }
+
+        function applyResize(clientX, clientY) {
+            if (resizeDir === 'left' || resizeDir === 'right') {
+                const dx = clientX - resizeStartX;
+                const delta = resizeDir === 'right' ? dx : -dx;
+                // Symmetric: both sides expand/contract equally
+                const newWidth = Math.max(200, Math.min(window.innerWidth - 40, resizeStartWidth + delta * 2));
+                sliderContainer.style.maxWidth = newWidth + 'px';
+                chunksContainer.style.maxWidth = newWidth + 'px';
+            } else if (resizeDir === 'top' || resizeDir === 'bottom') {
+                const dy = clientY - resizeStartY;
+                const delta = resizeDir === 'bottom' ? dy : -dy;
+                const newHeight = Math.max(36, Math.min(300, resizeStartHeight + delta * 2));
+                sliderTrack.style.height = newHeight + 'px';
+                sliderTrack.style.borderRadius = (newHeight / 2) + 'px';
+                // Update handles height
+                sliderTrack.querySelectorAll('.slider-handle').forEach(h => {
+                    h.style.height = (newHeight + 8) + 'px';
+                    h.style.top = '-4px';
+                });
+            }
+            resolveLayout();
+        }
+
+        function onResizeEnd(e) {
+            document.querySelectorAll('.slider-resize-handle').forEach(h => h.classList.remove('active'));
+            resizeDir = null;
+            document.removeEventListener('mousemove', onResizeMove);
+            document.removeEventListener('mouseup', onResizeEnd);
+        }
+
+        function onResizeTouchEnd() {
+            document.querySelectorAll('.slider-resize-handle').forEach(h => h.classList.remove('active'));
+            resizeDir = null;
+            document.removeEventListener('touchmove', onResizeTouchMove);
+            document.removeEventListener('touchend', onResizeTouchEnd);
+        }
+
+        // === Saves system ===
+        const STORAGE_KEY = 'percentageSplitterSaves';
+        const savesList = document.getElementById('savesList');
+        const saveCurrentBtn = document.getElementById('saveCurrentBtn');
+
+        function getSaves() {
+            try {
+                return JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+            } catch { return []; }
+        }
+
+        function setSaves(saves) {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(saves));
+        }
+
+        function getCurrentState() {
+            return {
+                percentages: [...percentages],
+                chunkNames: [...chunkNames],
+                chunkColors: [...chunkColors],
+                lockedChunks: [...lockedChunks],
+                totalValue: totalInput.value,
+                numChunks: numChunksInput.value,
+                sliderMaxWidth: sliderContainer.style.maxWidth || '',
+                sliderHeight: sliderTrack.style.height || ''
+            };
+        }
+
+        function loadState(state) {
+            totalInput.value = state.totalValue;
+            numChunksInput.value = state.numChunks;
+            percentages = [...state.percentages];
+            chunkNames = [...state.chunkNames];
+            chunkColors = [...state.chunkColors];
+            lockedChunks = [...state.lockedChunks];
+            if (state.sliderMaxWidth) {
+                sliderContainer.style.maxWidth = state.sliderMaxWidth;
+                chunksContainer.style.maxWidth = state.sliderMaxWidth;
+            } else {
+                sliderContainer.style.maxWidth = '';
+                chunksContainer.style.maxWidth = '';
+            }
+            if (state.sliderHeight) {
+                sliderTrack.style.height = state.sliderHeight;
+                const h = parseInt(state.sliderHeight);
+                sliderTrack.style.borderRadius = (h / 2) + 'px';
+            } else {
+                sliderTrack.style.height = '';
+                sliderTrack.style.borderRadius = '';
+            }
+            render();
+        }
+
+        function renderSaves() {
+            const saves = getSaves();
+            savesList.innerHTML = '';
+            saves.forEach((save, i) => {
+                const entry = document.createElement('div');
+                entry.className = 'save-entry';
+                const nameInput = document.createElement('input');
+                nameInput.type = 'text';
+                nameInput.className = 'save-entry-name';
+                nameInput.value = save.name;
+                nameInput.title = 'Click to rename';
+                nameInput.addEventListener('change', () => {
+                    const s = getSaves();
+                    s[i].name = nameInput.value || ('Save ' + (i + 1));
+                    setSaves(s);
+                });
+                const loadBtn = document.createElement('button');
+                loadBtn.className = 'save-entry-load';
+                loadBtn.textContent = '↩';
+                loadBtn.title = 'Load';
+                loadBtn.addEventListener('click', () => {
+                    loadState(save.state);
+                });
+                const delBtn = document.createElement('button');
+                delBtn.className = 'save-entry-del';
+                delBtn.textContent = '✕';
+                delBtn.title = 'Delete';
+                delBtn.addEventListener('click', () => {
+                    const s = getSaves();
+                    s.splice(i, 1);
+                    setSaves(s);
+                    renderSaves();
+                });
+                entry.appendChild(nameInput);
+                entry.appendChild(loadBtn);
+                entry.appendChild(delBtn);
+                savesList.appendChild(entry);
+            });
+        }
+
+        saveCurrentBtn.addEventListener('click', () => {
+            const saves = getSaves();
+            const name = 'Save ' + (saves.length + 1);
+            saves.push({ name, state: getCurrentState() });
+            setSaves(saves);
+            renderSaves();
+        });
+
+        renderSaves();
+
+        // Collapse/expand toggle
+        const savesPanel = document.getElementById('savesPanel');
+        const savesToggleBtn = document.getElementById('savesToggleBtn');
+        const COLLAPSE_KEY = 'percentageSplitterPanelCollapsed';
+
+        if (localStorage.getItem(COLLAPSE_KEY) === 'true') {
+            savesPanel.classList.add('collapsed');
+            savesToggleBtn.textContent = '\u25bc';
+            savesToggleBtn.title = 'Expand';
+        }
+
+        savesToggleBtn.addEventListener('click', () => {
+            const collapsed = savesPanel.classList.toggle('collapsed');
+            savesToggleBtn.textContent = collapsed ? '\u25bc' : '\u25b2';
+            savesToggleBtn.title = collapsed ? 'Expand' : 'Collapse';
+            localStorage.setItem(COLLAPSE_KEY, collapsed);
+        });
+
+        // Initialize
+        init();
+    </script>
+</body>
+</html>
